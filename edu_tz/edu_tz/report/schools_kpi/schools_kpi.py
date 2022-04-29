@@ -12,12 +12,12 @@ def execute(filters):
         {
             "fieldname": "class_avilable",
             "label": _("No. of Classes Available"),
-            "fieldtype": "Data",
+            "fieldtype": "Int",
         },
         {
             "fieldname": "class_in_use",
             "label": _("No. of Classes in Use"),
-            "fieldtype": "Data",
+            "fieldtype": "Int",
         },
         {
             "fieldname": "rate",
@@ -27,12 +27,12 @@ def execute(filters):
         {
             "fieldname": "class_capacity",
             "label": _("Classes Capacity"),
-            "fieldtype": "Data",
+            "fieldtype": "Int",
         },
         {
             "fieldname": "no_of_students",
             "label": _("No. of Students per Class"),
-            "fieldtype": "Data",
+            "fieldtype": "Int",
         },
         {"fieldname": "vacancies", "label": _("No. of Vacancies"), "fieldtype": "Data"},
     ]
@@ -49,20 +49,19 @@ def execute(filters):
         group_by="program",
     )
 
-    rooms = frappe.db.sql(
+    room_details = frappe.db.sql(
         """
-		SELECT program_name AS program, SUM(seating_capacity) AS total_students,
-		COUNT(room_name) AS total_rooms, IF(seating_capacity IS NULL, COUNT(room_name), 0) AS room_not_used
+		SELECT p.name AS program, SUM(r.seating_capacity) AS total_students,
+            COUNT(r.room_name) AS total_rooms, 
+            COUNT(r.seating_capacity) AS no_of_room_used
 		FROM `tabRoom` r
-		INNER JOIN `Program` p ON r.program_name = p.program_name
+		INNER JOIN `tabProgram` p ON r.edu_tz_program = p.name
 		WHERE p.company = %(company)s
-		GROUP BY program_name
-	""",
-        as_dict=1,
-    )
-
+		GROUP BY p.name
+	""", filters, as_dict=1)
+    
     for enroll in enrollment_details:
-        for room in rooms:
+        for room in room_details:
             if enroll.program == room.program:
                 d = enroll.no_of_students - room["total_students"]
                 if d > 0:
@@ -74,13 +73,9 @@ def execute(filters):
                     {
                         "class_name": enroll.program,
                         "class_avilable": room["total_rooms"],
-                        "class_in_use": room["total_rooms"] - room["room_not_used"],
+                        "class_in_use": room["no_of_room_used"],
                         "rate": cstr(
-                            (
-                                (room["total_rooms"] - room["room_not_used"])
-                                // room["total_rooms"]
-                            )
-                            * 100
+                            (room["no_of_room_used"] / room["total_rooms"]) * 100
                         )
                         + "%",
                         "class_capacity": room["total_students"],
