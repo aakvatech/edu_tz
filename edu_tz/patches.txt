@@ -1,2 +1,3 @@
 edu_tz.patches.custom_fields_for_edu
 edu_tz.patches.add_custom_field_for_room
+edu_tz.patches.setting_is_submittable 
